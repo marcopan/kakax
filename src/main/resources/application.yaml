@@ -1,0 +1,18 @@
+spring:
+  datasource:
+    driver-class-name: org.h2.Driver
+    url: jdbc:h2:~/h2test/h2db1
+    schema: classpath:schema.sql
+    data: classpath:data.sql
+    username: sa
+    password: sa
+    separator: ;
+    sql-script-encoding: utf-8
+    continue-on-error: false
+  h2:
+    console:
+      enabled: true
+
+mybatis:
+  mapper-locations: classpath:mapper/**/*Dao.xml
+  type-aliases-package: com.nongfu.kakax.basemain
