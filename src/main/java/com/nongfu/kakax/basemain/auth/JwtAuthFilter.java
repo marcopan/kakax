@@ -2,6 +2,7 @@ package com.nongfu.kakax.basemain.auth;
 
 import com.nongfu.kakax.basemain.advice.JwtAuthException;
 import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.ExpiredJwtException;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.logging.log4j.util.Strings;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -40,12 +41,25 @@ public class JwtAuthFilter extends GenericFilterBean {
             notAuthResponse(response);
             return;
         }
-        Claims body = tokenService.getBody(token);
+        Claims body = null;
+        try {
+            body = tokenService.getBody(token);
+        } catch (ExpiredJwtException exception) {
+            authExpireResponse(response);
+            return;
+        }
+
         if (body == null || tokenService.isTokenExpirte(token)) {
             notAuthResponse(response);
             return;
         }
         filterChain.doFilter(request, response);
+    }
+
+    private void authExpireResponse(HttpServletResponse response) throws IOException {
+        log.debug("session expire!");
+        response.setStatus(200);
+        response.getWriter().write("{code: 40000, message:'session expire.'}");
     }
 
     private void notAuthResponse(HttpServletResponse response) throws IOException {
