@@ -21,4 +21,4 @@ mybatis:
 token:
   header: Authorization
   secret: 6F3931D35F0395DF82B032B8019AC57D
-  expireTime: 30
+  expireTime: 15
