@@ -1,4 +1,6 @@
 spring:
+  application:
+    name: kakax.main
   datasource:
     driver-class-name: org.h2.Driver
     url: jdbc:h2:~/h2test/h2db1
@@ -22,3 +24,13 @@ token:
   header: Authorization
   secret: 6F3931D35F0395DF82B032B8019AC57D
   expireTime: 15
+eureka:
+  instance:
+    prefer-ip-address: true
+    hostname: ${spring.cloud.client.ip-address}
+    instance-id: ${spring.cloud.client.ip-address}:${spring.application.name}:${server.port}
+  client:
+    service-url:
+      defaultZone: http://${eureka.instance.hostname}:8761/eureka/
+server:
+  port: 8080
