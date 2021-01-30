@@ -1,0 +1,8 @@
+vi /etc/sysconfig/network-scripts/ifcfg-ens33
+
+#从配置清单中可以发现 CentOS 7 默认是不启动网卡的（ONBOOT=no）。
+#把这一项改为YES（ONBOOT=yes）
+
+sudo service network restart
+
+ip addr
