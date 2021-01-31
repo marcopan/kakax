@@ -12,3 +12,21 @@ yum -y update
 yum install -y yum-utils device-mapper-persistent-data lvm2
 yum-config-manager --add-repo http://mirrors.aliyun.com/docker-ce/linux/centos/docker-ce.repo
 yum install docker-ce
+sudo yum install docker-ce
+docker -v
+
+systemctl start docker
+systemctl status docker
+docker search mysql
+docker pull mysql
+docker images
+docker run -p 3306:3306 -v /Users/pan/mysqldata/data:/var/lib/mysql --name mysqlTest -e MYSQL_ROOT_PASSWORD=123 -d mysql:5.7
+docker ps
+docker exec -it 7019b648f282 /bin/bash
+mysql -uroot -p
+GRANT ALL PRIVILEGES ON *.* TO 'root'@'%'WITH GRANT OPTION;
+FLUSH PRIVILEGES;
+
+show databases ;
+use information_schema;
+select * from INNODB_TRX;
