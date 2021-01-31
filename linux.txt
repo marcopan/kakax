@@ -30,3 +30,19 @@ FLUSH PRIVILEGES;
 show databases ;
 use information_schema;
 select * from INNODB_TRX;
+
+show databases ;
+use information_schema;
+select * from INNODB_TRX;
+create database test_db;
+use test_db;
+create table test(
+    id int auto_increment,
+    name varchar(50),
+    email varchar(50),
+    primary key (id)
+);
+insert test(id, name, email) values (
+                                     1,'marco','aaa@test.com'
+                                    );
+select * from test;
