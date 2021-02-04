@@ -1,0 +1,153 @@
+systemctl enable --now docker.service
+
+hostnamectl set-hostname k8s-master  172.16.215.176
+hostnamectl set-hostname k8s-node01  172.16.215.177
+hostnamectl set-hostname k8s-node02  172.16.215.178
+
+yum install -y conntrack ntpdate ntp ipvsadm ipset jq iptables curl sysstat libseccomp wgetvimnet-tools git
+yum -y install iptables-services && systemctl start iptables && systemctl enable iptables&& iptables -F && service iptables save
+
+systemctl stop postfix && systemctl disable postfix
+
+systemctl stop firewalld && systemctl disable firewalld
+swapoff -a && sed -i '/ swap / s/^\(.*\)$/#\1/g' /etc/fstab
+setenforce 0 && sed -i 's/^SELINUX=.*/SELINUX=disabled/' /etc/selinux/config
+
+cat /proc/version
+
+backup hosts
+127.0.0.1   localhost localhost.localdomain localhost4 localhost4.localdomain4
+::1         localhost localhost.localdomain localhost6 localhost6.localdomain6
+
+vi /etc/hosts
+172.16.215.176  k8s-master
+172.16.215.177  k8s-node01
+172.16.215.178  k8s-node02
+
+rpm -Uvh http://www.elrepo.org/elrepo-release-7.0-3.el7.elrepo.noarch.rpm
+vi /boot/grub2/grub.cfg
+cat /proc/version
+yum --enablerepo=elrepo-kernel install -y kernel-lt
+grub2-set-default 'CentOS Linux (4.4.189-1.el7.elrepo.x86_64) 7 (Core)'
+reboot
+
+cat > /etc/systemd/journald.conf.d/99-prophet.conf <<EOF
+[Journal]
+# 持久化保存到磁盘
+Storage=persistent
+# 压缩历史日志
+Compress=yes
+SyncIntervalSec=5m
+RateLimitInterval=30s
+RateLimitBurst=1000
+# 最大占用空间 10G
+SystemMaxUse=10G
+# 单日志文件最大 200M
+SystemMaxFileSize=200M
+# 日志保存时间 2 周
+MaxRetentionSec=2week
+# 不将日志转发到 syslog
+ForwardToSyslog=no
+EOF
+systemctl restart systemd-journald
+
+
+cat > /etc/sysconfig/modules/ipvs.modules <<EOF
+modprobe -- ip_vs
+modprobe -- ip_vs_rr
+modprobe -- ip_vs_wrr
+modprobe -- ip_vs_sh
+modprobe -- nf_conntrack_ipv4
+EOF
+chmod 755 /etc/sysconfig/modules/ipvs.modules && bash /etc/sysconfig/modules/ipvs.modules
+
+cat > kubernetes.conf<<EOF
+net.bridge.bridge-nf-call-iptables=1
+net.bridge.bridge-nf-call-ip6tables=1
+net.ipv4.ip_forward=1
+net.ipv4.tcp_tw_recycle=0
+vm.swappiness=0 # 禁止使用 swap 空间，只有当系统 OOM 时才允许使用它
+vm.overcommit_memory=1 # 不检查物理内存是否够用
+vm.panic_on_oom=0 # 开启OOM
+fs.inotify.max_user_instances=8192
+fs.inotify.max_user_watches=1048576
+fs.file-max=52706963
+fs.nr_open=52706963
+net.ipv6.conf.all.disable_ipv6=1
+#net.netfilter.nf_conntrack_max=2310720
+EOF
+cp kubernetes.conf  /etc/sysctl.d/kubernetes.conf
+cat kubernetes.conf
+sysctl -p /etc/sysctl.d/kubernetes.conf
+
+
+timedatectl set-timezone Asia/Shanghai && timedatectl set-local-rtc 0 && systemctl restart rsyslog
+
+rpm -Uvh http://www.elrepo.org/elrepo-release-7.0-3.el7.elrepo.noarch.rpm
+yum --enablerepo=elrepo-kernel install -y kernel-lt
+grub2-set-default 'CentOS Linux (4.4.218-1.el7.elrepo.x86_64) 7 (Core)'
+
+timedatectl set-timezone Asia/Shanghai
+# 将当前的 UTC 时间写入硬件时钟
+timedatectl set-local-rtc 0
+# 重启依赖于系统时间的服务
+systemctl restart rsyslog
+systemctl restart crond
+
+
+yum -y install iptables-services iptables
+systemctl enable --now iptables.service
+iptables -F  #清空规则
+service iptables save  #保存
+iptables -L  #检查是否为空规则
+
+cat <<EOF > /etc/yum.repos.d/kubernetes.repo
+[kubernetes]
+name=Kubernetes
+baseurl=https://mirrors.aliyun.com/kubernetes/yum/repos/kubernetes-el7-x86_64/
+enabled=1
+gpgcheck=1
+repo_gpgcheck=1
+gpgkey=https://mirrors.aliyun.com/kubernetes/yum/doc/yum-key.gpg https://mirrors.aliyun.com/kubernetes/yum/doc/rpm-package-key.gpg
+EOF
+yum -y  install  kubeadm kubectl kubelet
+systemctl enable kubelet.service
+
+kubeadm version
+
+kubeadm init \
+--apiserver-advertise-address=172.16.215.176 \
+--image-repository registry.aliyuncs.com/google_containers \
+--kubernetes-version 1.20.2 \
+--service-cidr=10.1.0.0/16 \
+--pod-network-cidr=10.244.0.0/16
+
+
+cd /etc/kubernetes/manifests
+# - --port=0  注释掉
+vi kube-scheduler.yaml
+vi kube-controller-manager.yaml
+systemctl restart kubelet.service
+kubectl get cs
+
+systemctl status kubelet.service -l
+
+kubectl create ns kube-test
+kubectl get ns
+kubectl create deployment nginx --image=nginx -nkube-test
+kubectl create deployment nginx --image=nginx
+kubectl create service nodeport nginx --tcp 80:80
+kubectl get svc
+kubectl get pods -o wide
+curl 10.244.1.2
+curl k8s-node01:30581
+
+[root@k8s-master ~]# kubectl get service
+NAME         TYPE        CLUSTER-IP   EXTERNAL-IP   PORT(S)        AGE
+kubernetes   ClusterIP   10.1.0.1     <none>        443/TCP        26h
+nginx        NodePort    10.1.157.2   <none>        80:30581/TCP   166m
+NodePort的ip访问
+curl 10.1.157.2:80
+
+
+kubectl delete deployment nginx -ndefault
