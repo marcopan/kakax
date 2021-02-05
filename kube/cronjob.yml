@@ -1,0 +1,23 @@
+kubectl create -f cronjob.yml
+kubectl delete -f cronjob.yml
+kubectl get cronjob
+kubectl logs hello-cronjob-1612500120-l2dkp
+
+apiVersion: batch/v1beta1
+kind: CronJob
+metadata:
+  name: hello-cronjob
+spec:
+  schedule: "*/1 * * * *"
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+            - name: hello
+              image: busybox
+              args:
+                - /bin/sh
+                - -c
+                - date; echo Hello from the Kubernetes cluster
+          restartPolicy: OnFailure
